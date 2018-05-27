@@ -9,7 +9,7 @@ https://docs.google.com/document/d/1Vl2MsCqqYmXSgawZSrlfWuU_cUNVinBiRAVbBI8k1pk/
 
 ## SNPs to gene assignemnt
 
-We have SNP statistic score. The NN are built
+SNPs' statistic scores are obtained. The NN are built
 
 ## Network Propagation
 
