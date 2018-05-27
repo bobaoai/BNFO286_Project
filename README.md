@@ -11,7 +11,7 @@ https://docs.google.com/document/d/1Vl2MsCqqYmXSgawZSrlfWuU_cUNVinBiRAVbBI8k1pk/
 
   SNPs' statistic scores are obtained. 
   
-  NN is built as following structure:
+  NN is built with following structure:
   
   SNPs -> Gene -> Weighted Gene -> SNPs
   
