@@ -10,14 +10,19 @@ https://docs.google.com/document/d/1Vl2MsCqqYmXSgawZSrlfWuU_cUNVinBiRAVbBI8k1pk/
 ## Ranking with sparse NN
 
   SNPs' statistic scores are obtained. 
+  
   NN is built as following structure:
+  
   SNPs -> Gene -> Weighted Gene -> SNPs
+  
   SNPs are sampled for NN trainning and validation
+  
   The Weighted Gene layer is taken out and the weight is used for gene ranking. Done.
 
 ## Ranking with Network Propagation
 
   Use the top-hitted SNPs pvalue as the gene value.
+  
   Run the GWAB or NetWAS to do the network propagation.
 
 
