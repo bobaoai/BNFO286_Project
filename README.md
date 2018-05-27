@@ -1,5 +1,5 @@
 # BNFO286
-### Bokan Bao, Chao Zhang, Qin Yue
+### Bokan Bao, Chao Zhang, Yue Qin
 Doc Link
 https://docs.google.com/presentation/d/1to310NDKKWqgWbuMVb4zgLRPSoP3ZXkGajnbKoFuB2I/edit?usp=sharing
 
