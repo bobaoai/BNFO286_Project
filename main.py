@@ -12,8 +12,9 @@ def load_json(address):
         return json.load(f)
     
 if __name__ == '__main__':
-    p_list, source_list, target_list = load_json(r'C:\Users\hovea\Documents\GitHub\BNFO286\preprocessed_data.json')
-    netprop = NetworkPropagation(p_list, source_list, target_list, lossFn = F.mse_loss, optimizer = torch.optim.Adam)
-    #netprop.loadNetwork('test.pt')
+    p_list, source_list, target_list = load_json(r'preprocessed_data.json')
+    netprop = NetworkPropagation(p_list, source_list, target_list, optimizer = torch.optim.Adam, gpu = True, adaptiveEdgeWeights = True)
     netprop.train(1000)
-    netprop.saveNetwork('test.pt')
+    output = netprop.evaluate()
+    print(max(output), min(output))
+    store_json(r'raw_output_data.json', output)
