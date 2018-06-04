@@ -6,45 +6,47 @@ import numpy as np
 
 class NetworkPropagation():
     class PropagationNetwork(nn.Module):
-        def __init__(self, sources, targets, nIter, nHiddens, nFeatures, pDropout, adaptiveEdgeWeights):
+        def __init__(self, sources, targets, nIter, nHiddens, nFeatures, pDropout, adaptiveEdgeWeights, alpha, adaptiveAlpha):
             super(NetworkPropagation.PropagationNetwork, self).__init__()
             self.pDropout = pDropout
             self.dropout = nn.Dropout(pDropout)
             self.nIter = nIter
+            self.dense_ = nn.Linear(1, nHiddens)
             self.dense0 = nn.Linear(1, nHiddens)
             self.dense1 = nn.Linear(1, nHiddens)
             self.dense2 = nn.Linear(nHiddens, nFeatures)
             self.dense3 = nn.Linear(nFeatures, nHiddens)
             self.dense4 = nn.Linear(nHiddens, 1)
+            self.alpha = Variable(torch.FloatTensor([[alpha]]), requires_grad = adaptiveAlpha)
             
-            self.denseHS = nn.Linear(nFeatures, nHiddens)
-            self.denseHN = nn.Linear(nFeatures, nHiddens)
-            self.denseO = nn.Linear(nHiddens, nFeatures)
+            #self.denseHS = nn.Linear(nFeatures, nHiddens)
+            #self.denseHN = nn.Linear(nFeatures, nHiddens)
+            #self.denseO = nn.Linear(nHiddens, nFeatures)
             
-            self.denseHS2 = nn.Linear(nFeatures, nHiddens)
-            self.denseHN2 = nn.Linear(nFeatures, nHiddens)
-            self.denseO2 = nn.Linear(nHiddens, nFeatures)
+            #self.denseHS2 = nn.Linear(nFeatures, nHiddens)
+            #self.denseHN2 = nn.Linear(nFeatures, nHiddens)
+            #self.denseO2 = nn.Linear(nHiddens, nFeatures)
             
-            self.denseHS3 = nn.Linear(nFeatures, nHiddens)
-            self.denseHN3 = nn.Linear(nFeatures, nHiddens)
-            self.denseO3 = nn.Linear(nHiddens, nFeatures)
+            #self.denseHS3 = nn.Linear(nFeatures, nHiddens)
+            #self.denseHN3 = nn.Linear(nFeatures, nHiddens)
+            #self.denseO3 = nn.Linear(nHiddens, nFeatures)
             
         def forward(self, x, sparse1, sparse2, edgeWeights):
             x = self.dropout(x)
             if self.training:
                 x = x * (1 - self.pDropout)
-            #for i in range(self.nIter):
-            #    y = x
-            #    x = self.dense2(F.sigmoid(self.dense1(x)))
-            #    x = torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights)
-            #    x = self.dense4(F.sigmoid(self.dense0(y) + self.dense3(x)))
-            x = self.dense2(F.sigmoid(self.dense1(x)))
-            #for i in range(self.nIter):
-            #    x = self.denseO(F.sigmoid(self.denseHS(x) + self.denseHN(torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights))))
-            x = self.denseO(F.sigmoid(self.denseHS(x) + self.denseHN(torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights))))
-            x = self.denseO2(F.sigmoid(self.denseHS2(x) + self.denseHN2(torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights))))
-            x = self.denseO3(F.sigmoid(self.denseHS3(x) + self.denseHN3(torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights))))
-            x = self.dense4(F.sigmoid(self.dense3(x)))
+            z = x
+            for i in range(self.nIter):
+                y = x
+                x = self.dense2(F.sigmoid(self.dense1(x)))
+                x = torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights)
+                x = self.dense4(F.sigmoid(self.dense_(z) + self.dense0(y) + self.dense3(x))) + (1 - self.alpha) * z + self.alpha * torch.matmul(sparse2, torch.matmul(sparse1, y) * edgeWeights)
+            
+            #x = self.dense2(F.sigmoid(self.dense1(x)))
+            #x = self.denseO(F.sigmoid(self.denseHS(x) + self.denseHN(torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights))))
+            #x = self.denseO2(F.sigmoid(self.denseHS2(x) + self.denseHN2(torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights))))
+            #x = self.denseO3(F.sigmoid(self.denseHS3(x) + self.denseHN3(torch.matmul(sparse2, torch.matmul(sparse1, x) * edgeWeights))))
+            #x = self.dense4(F.sigmoid(self.dense3(x)))
             return x
         
     class Loss():
@@ -57,14 +59,16 @@ class NetworkPropagation():
     def accuracy(self, x, m1, m2, L):
         return torch.sum(F.relu(torch.sign((torch.matmul(m1, x) - torch.matmul(m2, x)) * (L - 0.5)))) / L.size()[0]
         
-    def __init__(self, values, sources, targets, optimizer, lr = 0.00005, nIter = 3, nHiddens = 2048, nFeatures = 16, gpu = True, pTeacher = 0.20, pHoldout = 0.1, pDropout = 0.1, valueCutoff = 4.6, pvalueCutoffFactor = 0.5, pDiffCutoff = 4.6, adaptiveEdgeWeights = False):
+    def __init__(self, values, sources, targets, optimizer, lr = 0.00001, nIter = 5, nHiddens = 2048, nFeatures = 16, gpu = True, pTeacher = 0.15, pHoldout = 0.05, pDropout = 0.05, valueCutoff = 4.6, pvalueCutoffFactor = 0.25, pDiffCutoff = 2.3, adaptiveEdgeWeights = False, alpha = 0.5, adaptiveAlpha = True):
         n = len(values)
         m = len(sources)
-        self.nn = self.PropagationNetwork(sources, targets, nIter = nIter, nHiddens = nHiddens, nFeatures = nFeatures, pDropout = pDropout, adaptiveEdgeWeights = adaptiveEdgeWeights)
-        y = torch.t(torch.FloatTensor([values]))
+        self.nn = self.PropagationNetwork(sources, targets, nIter = nIter, nHiddens = nHiddens, nFeatures = nFeatures, pDropout = pDropout, adaptiveEdgeWeights = adaptiveEdgeWeights, alpha = alpha, adaptiveAlpha = adaptiveAlpha)
+        y = torch.t(torch.FloatTensor([values])) + 1
+        self.y = Variable(y, requires_grad = False)
         nHoldout = int(n * pHoldout)
         nTeacher = int(n * pTeacher)
-        totalMask = torch.FloatTensor([[0] if x < 1e-6 else [1] for x in values])
+        #totalMask = torch.FloatTensor([[0] if x < 1e-6 else [1] for x in values])
+        totalMask = torch.FloatTensor([[1] if x < 1e-6 else [1] for x in values])
         mask = np.concatenate((np.ones((n - nHoldout, 1)), np.zeros((nHoldout, 1))))
         np.random.shuffle(mask)
         trainMask = torch.FloatTensor(mask.tolist()) * totalMask
@@ -133,7 +137,7 @@ class NetworkPropagation():
         print(self.sparse1.size(), self.sparse2.size(), self.edgeWeights.size())
         if gpu:
             self.x = self.x.cuda()
-            #self.y = self.y.cuda()
+            self.y = self.y.cuda()
             #self.trainMask = self.trainMask.cuda()
             #self.holdoutMask = self.holdoutMask.cuda()
             #self.totalMask = self.totalMask.cuda()
@@ -148,6 +152,7 @@ class NetworkPropagation():
             self.holdoutSparse2 = self.holdoutSparse2.cuda()
             self.trainLabel = self.trainLabel.cuda()
             self.holdoutLabel = self.holdoutLabel.cuda()
+            self.nn.alpha = self.nn.alpha.cuda()
         self.optimizer = optimizer(self.nn.parameters(), lr = lr)
             
     def saveNetwork(self, path):
@@ -156,7 +161,7 @@ class NetworkPropagation():
     def loadNetwork(self, path):
         self.nn = torch.load(path)
         
-    def train(self, nIter, earlyStopThreshold = 100):
+    def train(self, nIter, earlyStopThreshold = 50):
         self.nn.train()
         minIter = 0
         minLoss = 1e9
@@ -193,4 +198,5 @@ class NetworkPropagation():
         output = self.nn(self.x, self.sparse1, self.sparse2, self.edgeWeights)
         print("Validation Loss =", self.lossFn(output, self.holdoutSparse1, self.holdoutSparse2, self.holdoutLabel).item())
         print("Validation Accuracy =", self.accuracy(output, self.holdoutSparse1, self.holdoutSparse2, self.holdoutLabel).item())
-        return (output.data).t().cpu().numpy().tolist()[0]
+        output = None
+        return (self.nn(self.y, self.sparse1, self.sparse2, self.edgeWeights).data).t().cpu().numpy().tolist()[0]

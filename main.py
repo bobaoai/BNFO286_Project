@@ -13,7 +13,7 @@ def load_json(address):
     
 if __name__ == '__main__':
     p_list, source_list, target_list = load_json(r'preprocessed_data.json')
-    netprop = NetworkPropagation(p_list, source_list, target_list, optimizer = torch.optim.Adam, gpu = True, adaptiveEdgeWeights = True)
+    netprop = NetworkPropagation(p_list, source_list, target_list, optimizer = torch.optim.Adam, gpu = True, adaptiveEdgeWeights = False)
     netprop.train(1000)
     output = netprop.evaluate()
     print(max(output), min(output))
