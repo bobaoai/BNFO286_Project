@@ -6,7 +6,7 @@ import numpy as np
 
 class NetworkPropagation():
     class PropagationNetwork(nn.Module):
-        def __init__(self, sources, targets, nIter, nHiddens, nFeatures, pDropout, adaptiveEdgeWeights, alpha, adaptiveAlpha):
+        def __init__(self, sources, targets, nIter, nHiddens, nFeatures, pDropout, adaptiveEdgeWeights, alpha, adaptiveAlpha, gpu = gpu):
             super(NetworkPropagation.PropagationNetwork, self).__init__()
             self.pDropout = pDropout
             self.dropout = nn.Dropout(pDropout)
@@ -17,8 +17,10 @@ class NetworkPropagation():
             self.dense2 = nn.Linear(nHiddens, nFeatures)
             self.dense3 = nn.Linear(nFeatures, nHiddens)
             self.dense4 = nn.Linear(nHiddens, 1)
-            self.alpha = Variable(torch.FloatTensor([[alpha]]), requires_grad = adaptiveAlpha)
-            
+            if gpu:
+				self.alpha = Variable(torch.FloatTensor([[alpha]]).cuda(), requires_grad = adaptiveAlpha)
+            else:
+				self.alpha = Variable(torch.FloatTensor([[alpha]]), requires_grad = adaptiveAlpha)
             #self.denseHS = nn.Linear(nFeatures, nHiddens)
             #self.denseHN = nn.Linear(nFeatures, nHiddens)
             #self.denseO = nn.Linear(nHiddens, nFeatures)
@@ -62,9 +64,8 @@ class NetworkPropagation():
     def __init__(self, values, sources, targets, optimizer, lr = 0.00001, nIter = 5, nHiddens = 2048, nFeatures = 16, gpu = True, pTeacher = 0.15, pHoldout = 0.05, pDropout = 0.05, valueCutoff = 4.6, pvalueCutoffFactor = 0.25, pDiffCutoff = 2.3, adaptiveEdgeWeights = False, alpha = 0.5, adaptiveAlpha = True):
         n = len(values)
         m = len(sources)
-        self.nn = self.PropagationNetwork(sources, targets, nIter = nIter, nHiddens = nHiddens, nFeatures = nFeatures, pDropout = pDropout, adaptiveEdgeWeights = adaptiveEdgeWeights, alpha = alpha, adaptiveAlpha = adaptiveAlpha)
+        self.nn = self.PropagationNetwork(sources, targets, nIter = nIter, nHiddens = nHiddens, nFeatures = nFeatures, pDropout = pDropout, adaptiveEdgeWeights = adaptiveEdgeWeights, alpha = alpha, adaptiveAlpha = adaptiveAlpha, gpu = gpu)
         y = torch.t(torch.FloatTensor([values])) + 1
-        self.y = Variable(y, requires_grad = False)
         nHoldout = int(n * pHoldout)
         nTeacher = int(n * pTeacher)
         #totalMask = torch.FloatTensor([[0] if x < 1e-6 else [1] for x in values])
@@ -76,8 +77,6 @@ class NetworkPropagation():
         mask = np.concatenate((np.ones((nTeacher, 1)), np.zeros((n - nTeacher, 1))))
         np.random.shuffle(mask)
         teacherMask = torch.FloatTensor(mask.tolist()) * trainMask
-        self.x = Variable(y * trainMask * (1 - teacherMask), requires_grad = False)
-        print(self.x.size())
         #self.y = Variable(y * holdoutMask, requires_grad = False)
         #self.trainMask = Variable(trainMask, requires_grad = False)
         #self.holdoutMask = Variable(holdoutMask, requires_grad = False)
@@ -119,41 +118,46 @@ class NetworkPropagation():
                     holdoutLabel.append([1] if values[i] > values[j] else [0])
         print(len(train1), len(holdout1))
         print(len(trainLabel), len(holdoutLabel))
-        self.trainSparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(train1))) + [0], train1 + [n - 1]]), torch.FloatTensor([1] * len(train1) + [0])), requires_grad = False)
-        self.trainSparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(train1))) + [0], train2 + [n - 1]]), torch.FloatTensor([1] * len(train1) + [0])), requires_grad = False)
-        self.holdoutSparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(holdout1))) + [0], holdout1 + [n - 1]]), torch.FloatTensor([1] * len(holdout1) + [0])), requires_grad = False)
-        self.holdoutSparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(holdout1))) + [0], holdout2 + [n - 1]]), torch.FloatTensor([1] * len(holdout1) + [0])), requires_grad = False)
-        self.trainLabel = Variable(torch.FloatTensor(trainLabel), requires_grad = False)
-        self.holdoutLabel = Variable(torch.FloatTensor(holdoutLabel), requires_grad = False)
         
         self.lossFn = self.Loss()
         count = [0] * n
         for v in sources:
             count[v] += 1
         weights = [[1.0 / count[v]] for v in sources]
-        self.sparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([range(m), sources]), torch.FloatTensor([1] * m)), requires_grad = False)
-        self.sparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([targets, range(m)]), torch.FloatTensor([1] * m)), requires_grad = False)
-        self.edgeWeights = Variable(torch.FloatTensor(weights), requires_grad = adaptiveEdgeWeights)#.expand(m, nFeatures)
-        print(self.sparse1.size(), self.sparse2.size(), self.edgeWeights.size())
-        if gpu:
-            self.x = self.x.cuda()
-            self.y = self.y.cuda()
-            #self.trainMask = self.trainMask.cuda()
-            #self.holdoutMask = self.holdoutMask.cuda()
-            #self.totalMask = self.totalMask.cuda()
-            #self.noMask = self.noMask.cuda()
+        
+		if gpu:
             self.nn.cuda()
-            self.sparse1 = self.sparse1.cuda()
-            self.sparse2 = self.sparse2.cuda()
-            self.edgeWeights = self.edgeWeights.cuda()
-            self.trainSparse1 = self.trainSparse1.cuda()
-            self.trainSparse2 = self.trainSparse2.cuda()
-            self.holdoutSparse1 = self.holdoutSparse1.cuda()
-            self.holdoutSparse2 = self.holdoutSparse2.cuda()
-            self.trainLabel = self.trainLabel.cuda()
-            self.holdoutLabel = self.holdoutLabel.cuda()
-            self.nn.alpha = self.nn.alpha.cuda()
-        self.optimizer = optimizer(self.nn.parameters(), lr = lr)
+            self.y = Variable(y.cuda(), requires_grad = False)
+		    self.x = Variable((y * trainMask * (1 - teacherMask)).cuda(), requires_grad = False)
+            self.trainSparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(train1))) + [0], train1 + [n - 1]]), torch.FloatTensor([1] * len(train1) + [0])).cuda(), requires_grad = False)
+            self.trainSparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(train1))) + [0], train2 + [n - 1]]), torch.FloatTensor([1] * len(train1) + [0])).cuda(), requires_grad = False)
+            self.holdoutSparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(holdout1))) + [0], holdout1 + [n - 1]]), torch.FloatTensor([1] * len(holdout1) + [0])).cuda(), requires_grad = False)
+            self.holdoutSparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(holdout1))) + [0], holdout2 + [n - 1]]), torch.FloatTensor([1] * len(holdout1) + [0])).cuda(), requires_grad = False)
+            self.trainLabel = Variable(torch.FloatTensor(trainLabel).cuda(), requires_grad = False)
+            self.holdoutLabel = Variable(torch.FloatTensor(holdoutLabel).cuda(), requires_grad = False)
+            self.sparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([range(m), sources]), torch.FloatTensor([1] * m)).cuda(), requires_grad = False)
+            self.sparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([targets, range(m)]), torch.FloatTensor([1] * m)).cuda(), requires_grad = False)
+            self.edgeWeights = Variable(torch.FloatTensor(weights).cuda(), requires_grad = adaptiveEdgeWeights)#.expand(m, nFeatures)
+        else:
+            self.y = Variable(y, requires_grad = False)
+		    self.x = Variable(y * trainMask * (1 - teacherMask), requires_grad = False)
+            self.trainSparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(train1))) + [0], train1 + [n - 1]]), torch.FloatTensor([1] * len(train1) + [0])), requires_grad = False)
+            self.trainSparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(train1))) + [0], train2 + [n - 1]]), torch.FloatTensor([1] * len(train1) + [0])), requires_grad = False)
+            self.holdoutSparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(holdout1))) + [0], holdout1 + [n - 1]]), torch.FloatTensor([1] * len(holdout1) + [0])), requires_grad = False)
+            self.holdoutSparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([list(range(len(holdout1))) + [0], holdout2 + [n - 1]]), torch.FloatTensor([1] * len(holdout1) + [0])), requires_grad = False)
+            self.trainLabel = Variable(torch.FloatTensor(trainLabel), requires_grad = False)
+            self.holdoutLabel = Variable(torch.FloatTensor(holdoutLabel), requires_grad = False)
+            self.sparse1 = Variable(torch.sparse.FloatTensor(torch.LongTensor([range(m), sources]), torch.FloatTensor([1] * m)), requires_grad = False)
+            self.sparse2 = Variable(torch.sparse.FloatTensor(torch.LongTensor([targets, range(m)]), torch.FloatTensor([1] * m)), requires_grad = False)
+            self.edgeWeights = Variable(torch.FloatTensor(weights), requires_grad = adaptiveEdgeWeights)#.expand(m, nFeatures)
+        
+        print(self.sparse1.size(), self.sparse2.size(), self.edgeWeights.size())
+        param = list(self.nn.parameters())
+		if adaptiveEdgeWeights:
+			param.append(adaptiveEdgeWeights)
+		if adaptiveAlpha:
+			param.append(adaptiveAlpha)
+		self.optimizer = optimizer(param, lr = lr)
             
     def saveNetwork(self, path):
         torch.save(self.nn, path)
