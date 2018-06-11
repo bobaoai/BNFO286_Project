@@ -5,7 +5,7 @@ Slides Link
 https://docs.google.com/presentation/d/1to310NDKKWqgWbuMVb4zgLRPSoP3ZXkGajnbKoFuB2I/edit?usp=sharing
 
 Overleaf
-
+https://www.overleaf.com/read/prjnjmhbwxyp
 https://www.overleaf.com/16700835nghxcnnkxwtm#/64031895/
 
 ## Ranking with sparse NN
