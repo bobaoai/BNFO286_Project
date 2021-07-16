@@ -1,5 +1,5 @@
-# The project result becomes a part of the paper 
-# Carlin, D.E., Fong, S.H., Qin, Y., Jia, T., Huang, J.K., Bao, B., Zhang, C. and Ideker, T., 2019. A fast and flexible framework for network-assisted genomic association. Iscience, 16, pp.155-161.
+## The project result becomes a part of the paper 
+## Carlin, D.E., Fong, S.H., Qin, Y., Jia, T., Huang, J.K., Bao, B., Zhang, C. and Ideker, T., 2019. A fast and flexible framework for network-assisted genomic association. Iscience, 16, pp.155-161.
 Slides Link
 
 https://docs.google.com/presentation/d/1to310NDKKWqgWbuMVb4zgLRPSoP3ZXkGajnbKoFuB2I/edit?usp=sharing
